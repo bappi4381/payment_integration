@@ -112,7 +112,7 @@ class SslCommerzPaymentController extends Controller
         ]);
     
         // Check if amount is properly set
-        dd($re_post_data->input('amount')); // Debug the value of 'amount' to see if it's properly received
+        //dd($re_post_data); // Debug the value of 'amount' to see if it's properly received
     
         // Collect order data from merged request
         $post_data = [
@@ -127,7 +127,7 @@ class SslCommerzPaymentController extends Controller
             'ship_add1' => $re_post_data->input('cus_add1'),
             'ship_country' => "Bangladesh",
         ];
-    
+        //dd($post_data);
         // Insert or Update Order in DB
         $update_product = DB::table('orders')
             ->updateOrInsert([
@@ -154,11 +154,6 @@ class SslCommerzPaymentController extends Controller
             return response()->json(['error' => 'Failed to get payment options', 'details' => $payment_options], 500);
         }
     }
-    
-
-    
-
-
     public function success(Request $request)
     {
         echo "Transaction is Successful";

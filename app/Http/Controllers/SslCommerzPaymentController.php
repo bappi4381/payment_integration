@@ -100,8 +100,12 @@ class SslCommerzPaymentController extends Controller
     {
         // Decode the cart_json data
         $post_data_req = json_decode($request->cart_json, true); // Convert to an associative array
+        if (!$post_data_req) {
+            return response()->json(['error' => 'Invalid JSON data'], 400);
+        }
+        
         $re_post_data = new Request($post_data_req); // Create a new Request instance with decoded data
-    
+
         // Validate incoming data
         $re_post_data->validate([
             'amount' => 'required|numeric', // Validate the amount field
@@ -110,10 +114,7 @@ class SslCommerzPaymentController extends Controller
             'cus_add1' => 'required|string',
             'cus_phone' => 'required|string',
         ]);
-    
-        // Check if amount is properly set
-        //dd($re_post_data); // Debug the value of 'amount' to see if it's properly received
-    
+
         // Collect order data from merged request
         $post_data = [
             'total_amount' => $re_post_data->input('amount'),
@@ -127,33 +128,36 @@ class SslCommerzPaymentController extends Controller
             'ship_add1' => $re_post_data->input('cus_add1'),
             'ship_country' => "Bangladesh",
         ];
-        //dd($post_data);
+        dd($post_data);
         // Insert or Update Order in DB
-        $update_product = DB::table('orders')
-            ->updateOrInsert([
-                'transaction_id' => $post_data['tran_id']
-            ], [
-                'name' => $post_data['cus_name'],
-                'email' => $post_data['cus_email'],
-                'phone' => $post_data['cus_phone'],
-                'amount' => $post_data['total_amount'],
-                'status' => 'Pending',
-                'address' => $post_data['cus_add1'],
-                'currency' => $post_data['currency']
-            ]);
-    
+        try {
+            $update_product = DB::table('orders')
+                ->updateOrInsert([
+                    'transaction_id' => $post_data['tran_id']
+                ], [
+                    'name' => $post_data['cus_name'],
+                    'email' => $post_data['cus_email'],
+                    'phone' => $post_data['cus_phone'],
+                    'amount' => $post_data['total_amount'],
+                    'status' => 'Pending',
+                    'address' => $post_data['cus_add1'],
+                    'currency' => $post_data['currency']
+                ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to insert/update order', 'message' => $e->getMessage()], 500);
+        }
+
         // Call SSLCOMMERZ Payment Gateway
         $sslc = new SslCommerzNotification();
+        # initiate(Transaction Data , false: Redirect to SSLCOMMERZ gateway/ true: Show all the Payement gateway here )
         $payment_options = $sslc->makePayment($post_data, 'checkout', 'json');
-    
-        if (is_array($payment_options) && isset($payment_options['gateway_page_url'])) {
-            // Redirect user to payment page
-            return redirect($payment_options['gateway_page_url']);
-        } else {
-            // Handle errors or invalid response
-            return response()->json(['error' => 'Failed to get payment options', 'details' => $payment_options], 500);
+
+        if (!is_array($payment_options)) {
+            print_r($payment_options);
+            $payment_options = array();
         }
     }
+
     public function success(Request $request)
     {
         echo "Transaction is Successful";
